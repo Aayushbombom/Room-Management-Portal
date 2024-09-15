@@ -5,6 +5,7 @@ import com.example.room_booking_app.model.User;
 import com.example.room_booking_app.repo.BookingRepo;
 import com.example.room_booking_app.repo.RoomRepo;
 import com.example.room_booking_app.repo.UserRepo;
+import com.example.room_booking_app.utils.PasswordEncoder;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,7 +21,8 @@ import java.util.*;
 
 
 @RestController
-//@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.OPTIONS})
+@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.OPTIONS})
+@RequestMapping("/api/user")
 public class UserController {
 
     @Autowired
@@ -31,12 +33,30 @@ public class UserController {
     private RoomRepo roomRepo;
 
     @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
     private JwtUtils jwtUtil;
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody User user, HttpServletResponse response){
+    public ResponseEntity<?> login(@RequestBody User user, HttpServletResponse response, @RequestParam boolean isAdmin){
 
         Map<String, Object> res = new HashMap<>();
+        System.out.println(isAdmin);
+        if(isAdmin){
+            if(user.getEmail().equals("admin@bookit.com") && user.getPassword().equals("123@Admin")){
+                Cookie jwt = new Cookie("Adminjwt", jwtUtil.generateToken("admin@bookit.com"));
+                jwt.setPath("/");
+                jwt.setHttpOnly(true);
+
+                response.addCookie(jwt);
+                res.put("Success", "Login successful");
+            }
+            else{
+                res.put("Error", "Wrong Email or Password");
+            }
+            return ResponseEntity.ok(res);
+        }
         if(!userRepo.existsByEmail(user.getEmail())){
             res.put("Error", "User does not exists");
             return ResponseEntity.ok(res);
@@ -44,41 +64,63 @@ public class UserController {
 
         User actualUser = userRepo.findByEmail(user.getEmail());
 
-        if(actualUser.getPassword().equals(user.getPassword())){
+        if(passwordEncoder.matchPassword(user.getPassword(), actualUser.getPassword())){
             Cookie jwt = new Cookie("jwt", jwtUtil.generateToken(String.valueOf(actualUser.getUserID())));
             jwt.setPath("/");
             jwt.setHttpOnly(true);
-            jwt.setMaxAge(3600);
 
             response.addCookie(jwt);
             res.put("Success", "Login successful");
-            return ResponseEntity.ok(res);
         }
         else{
             res.put("Error", "Wrong Password");
-            return ResponseEntity.ok(res);
         }
+        return ResponseEntity.ok(res);
 
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<?> signup(@RequestBody User user){
+    public ResponseEntity<?> signup(@RequestBody User user, HttpServletResponse response){
         Map<String, Object> res = new HashMap<>();
+
         if(userRepo.existsByEmail(user.getEmail())){
             res.put("Error", "Forbidden, Account already exists");
             return ResponseEntity.ok(res);
         }
+
         User newUser = new User();
         newUser.setName(user.getName());
         newUser.setEmail(user.getEmail());
-        newUser.setPassword(user.getPassword());
+        newUser.setPassword(passwordEncoder.encodePassword(user.getPassword()));
         userRepo.save(newUser);
+
+        User savedUser = userRepo.findByEmail(user.getEmail());
+        Cookie jwt = new Cookie("jwt", jwtUtil.generateToken(String.valueOf(savedUser.getUserID())));
+        jwt.setPath("/");
+        jwt.setHttpOnly(true);
+
+        response.addCookie(jwt);
         res.put("Success", "Account created");
         return ResponseEntity.ok(res);
     }
 
+    @GetMapping("/logout")
+    public ResponseEntity<?> signOut(HttpServletResponse response){
+        Cookie jwt = new Cookie("jwt", "");
+        jwt.setPath("/");
+        jwt.setHttpOnly(true);
+        jwt.setMaxAge(0);
+        Cookie Adminjwt = new Cookie("Adminjwt", "");
+        Adminjwt.setPath("/");
+        Adminjwt.setHttpOnly(true);
+        Adminjwt.setMaxAge(0);
+        response.addCookie(jwt);
+        response.addCookie(Adminjwt);
+        return ResponseEntity.ok(new HashMap<>());
+    }
 
-    @GetMapping("/user")
+
+    @GetMapping
     public ResponseEntity<?> getUser(@RequestAttribute String userID){
         int userIDInt = Integer.parseInt(userID);
         System.out.println("The userId is "+userIDInt);
@@ -91,7 +133,6 @@ public class UserController {
         mp.put("name", user.getName());
         mp.put("userID", user.getUserID());
         mp.put("email", user.getEmail());
-        System.out.println(mp);
         return ResponseEntity.ok(mp);
 
     }
@@ -121,10 +162,10 @@ public class UserController {
             bookingMap.put("userID", booking.getUserID());
             bookingMap.put("roomID", booking.getRoomID());
             bookingMap.put("bookingID", booking.getBookingID());
-            bookingMap.put("dateOFBooking", booking.getDateOfBooking());
+            bookingMap.put("dateOfBooking", booking.getDateOfBooking());
             bookingMap.put("timeFrom", booking.getTimeFrom());
             bookingMap.put("timeTo", booking.getTimeTo());
-
+            bookingMap.put("purpose", booking.getPurpose());
             bookingMap.put("room", roomRepo.findByRoomID(booking.getRoomID()).getRoomName());
 
             response.add(bookingMap);
@@ -159,12 +200,12 @@ public class UserController {
             bookingMap.put("userID", booking.getUserID());
             bookingMap.put("roomID", booking.getRoomID());
             bookingMap.put("bookingID", booking.getBookingID());
-            bookingMap.put("dateOFBooking", booking.getDateOfBooking());
+            bookingMap.put("dateOfBooking", booking.getDateOfBooking());
             bookingMap.put("timeFrom", booking.getTimeFrom());
             bookingMap.put("timeTo", booking.getTimeTo());
+            bookingMap.put("purpose", booking.getPurpose());
 
             bookingMap.put("room", roomRepo.findByRoomID(booking.getRoomID()).getRoomName());
-
             response.add(bookingMap);
         }
 

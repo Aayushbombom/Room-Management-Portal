@@ -1,6 +1,7 @@
 package com.example.room_booking_app.model;
 
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
 
 import java.util.Date;
@@ -14,8 +15,12 @@ public class Booking {
     private int bookingID;
 
     private int userID;
+
     private int roomID;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     private Date dateOfBooking;
+
     private String timeFrom;
     private String timeTo;
     private String purpose;

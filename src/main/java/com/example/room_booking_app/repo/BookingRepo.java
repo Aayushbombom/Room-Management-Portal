@@ -28,6 +28,18 @@ public interface BookingRepo extends JpaRepository<Booking, Integer> {
                                          @Param("timeFrom") String timeFrom,
                                          @Param("timeTo") String timeTo);
 
+    @Query("SELECT COUNT(b) > 0 FROM Booking b " +
+            "WHERE b.roomID = :roomId " +
+            "AND b.dateOfBooking = :date " +
+            "AND b.timeFrom <= :timeTo " +
+            "AND b.timeTo >= :timeFrom " +
+            "AND b.bookingID != :bookingID")
+    boolean existsByRoomIDAndTimeOverlapForUpdate(@Param("bookingID") int bookingID,
+                                         @Param("roomId") int roomId,
+                                         @Param("date") Date date,
+                                         @Param("timeFrom") String timeFrom,
+                                         @Param("timeTo") String timeTo);
+
     boolean existsByBookingID(int bookingID);
 
     void deleteByBookingID(int bookingID);

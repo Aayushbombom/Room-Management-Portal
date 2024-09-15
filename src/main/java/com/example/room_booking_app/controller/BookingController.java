@@ -7,21 +7,19 @@ import com.example.room_booking_app.repo.UserRepo;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.time.format.DateTimeParseException;
 
 @RestController
-@RequestMapping("/book")
+@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PATCH, RequestMethod.DELETE, RequestMethod.OPTIONS})
+@RequestMapping("api/book")
 public class BookingController {
     @Autowired
     private BookingRepo bookingRepo;
@@ -31,66 +29,83 @@ public class BookingController {
     private UserRepo userRepo;
 
     @PostMapping
-    public ResponseEntity<?> createBooking(@RequestBody Booking booking){
+    public ResponseEntity<?> createBooking(@RequestBody Booking booking, @RequestAttribute String userID){
+        int userIDInt = Integer.parseInt(userID);
         booking.setDateOfBooking(setTimeToMidNight(booking.getDateOfBooking()));
         Map<String, Object> mp = new HashMap<>();
         if(!roomRepo.existsByRoomID(booking.getRoomID())){
             mp.put("Error", "Room does not exist");
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mp);
+            return ResponseEntity.ok(mp);
         }
 
-        if(!userRepo.existsByUserID(booking.getUserID())){
+        if(!userRepo.existsByUserID(userIDInt)){
             mp.put("Error", "User does not exist");
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mp);
+            return ResponseEntity.ok(mp);
         }
 
         if(bookingRepo.existsByRoomIDAndTimeOverlap(booking.getRoomID(), booking.getDateOfBooking(), booking.getTimeFrom(), booking.getTimeTo())){
             mp.put("Error", "Room unavailable");
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mp);
+            return ResponseEntity.ok(mp);
         }
 
         if(isDateBeforeToday(booking.getDateOfBooking())){
             mp.put("Error", "Invalid date/time");
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mp);
+            return ResponseEntity.ok(mp);
         }
 
         if(isDateToday(booking.getDateOfBooking()) && isTimeBeforeCurrentTime(booking.getTimeFrom())){
             mp.put("Error", "Invalid time/date/time");
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mp);
+            return ResponseEntity.ok(mp);
         }
-
+        booking.setUserID(userIDInt);
+        System.out.println("Booking Verified");
         bookingRepo.save(booking);
-        return ResponseEntity.ok("Booking created successfully");
+        mp.put("Success", "Booking created successfully");
+        return ResponseEntity.ok(mp);
 
     }
 
     @PatchMapping
-    public ResponseEntity<?> updateBooking(@RequestBody Booking booking){
+    public ResponseEntity<?> updateBooking(@RequestBody Booking booking, @RequestAttribute String userID){
         Map<String, Object> mp = new HashMap<>();
-
+        booking.setUserID(Integer.parseInt(userID));
         if(!bookingRepo.existsByBookingID(booking.getBookingID())){
             mp.put("Error", "Booking does not exists");
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mp);
+            return ResponseEntity.ok(mp);
         }
 
         if(!roomRepo.existsByRoomID(booking.getRoomID())){
             mp.put("Error", "Room does not exist");
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mp);
+            return ResponseEntity.ok(mp);
         }
 
         if(!userRepo.existsByUserID(booking.getUserID())){
             mp.put("Error", "User does not exist");
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mp);
+            return ResponseEntity.ok(mp);
         }
 
-        if(bookingRepo.existsByRoomIDAndTimeOverlap(booking.getRoomID(), booking.getDateOfBooking(), booking.getTimeFrom(), booking.getTimeTo())){
-            mp.put("Error", "Room Unavailable");
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mp);
+        if(isDateBeforeToday(booking.getDateOfBooking())){
+            mp.put("Error", "Invalid date/time");
+            return ResponseEntity.ok(mp);
         }
+
+        if(isDateToday(booking.getDateOfBooking()) && isTimeBeforeCurrentTime(booking.getTimeFrom())){
+            mp.put("Error", "Invalid time/date/time");
+            return ResponseEntity.ok(mp);
+        }
+
+        if(bookingRepo.existsByRoomIDAndTimeOverlapForUpdate(booking.getBookingID(), booking.getRoomID(), booking.getDateOfBooking(), booking.getTimeFrom(), booking.getTimeTo())){
+            System.out.println("Booking Unavailable");
+            mp.put("Error", "Room Unavailable");
+            return ResponseEntity.ok(mp);
+        }
+
+
 
 
         bookingRepo.save(booking);
-        return ResponseEntity.ok("Booking updated successfully");
+        mp.put("Success", "Booking updated successfully");
+        return ResponseEntity.ok(mp);
 
     }
 
@@ -101,11 +116,12 @@ public class BookingController {
         Map<String, Object> mp = new HashMap<>();
         if(!bookingRepo.existsByBookingID(bookingID)){
             mp.put("Error", "Booking does not exists");
-            return ResponseEntity.badRequest().body(mp);
+            return ResponseEntity.ok(mp);
         }
 
         bookingRepo.deleteByBookingID(bookingID);
-        return ResponseEntity.ok("Booking deleted successfully");
+        mp.put("Success", "Booking deleted successfully");
+        return ResponseEntity.ok(mp);
 
     }
 

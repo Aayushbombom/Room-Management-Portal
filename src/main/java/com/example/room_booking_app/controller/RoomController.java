@@ -19,7 +19,8 @@ import java.util.Map;
 
 
 @RestController
-@RequestMapping("/rooms")
+@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PATCH, RequestMethod.DELETE, RequestMethod.OPTIONS})
+@RequestMapping("api/rooms")
 public class RoomController {
 
     @Autowired
@@ -27,6 +28,7 @@ public class RoomController {
 
     @Autowired
     private BookingRepo bookingRepo;
+
 
     @GetMapping
     public ResponseEntity<?> getRooms(@RequestParam(required = false) Integer capacity) {
@@ -47,7 +49,7 @@ public class RoomController {
                     Map<String, Object> roomMap = new HashMap<>();
                     roomMap.put("roomID", room.getRoomID());
                     roomMap.put("capacity", room.getRoomCapacity());
-
+                    roomMap.put("name", room.getRoomName());
                     List<Booking> bookings = bookingRepo.findByRoomID(room.getRoomID());
                     List<Map<String, Object>> booked = new ArrayList<>();
                     bookings.forEach(booking -> {
@@ -73,53 +75,54 @@ public class RoomController {
 
     @PostMapping
     public ResponseEntity<?> addRoom(@RequestBody Room room) {
-        Map<String, String> errorResponse = new HashMap<>();
-        if(roomRepo.existsByRoomID(room.getRoomID())) {
-            errorResponse.put("Errors", "Room already exists");
-            return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
-        }
+        Map<String, String> response = new HashMap<>();
         if(room.getRoomCapacity() <= 0){
-            errorResponse.put("Errors", "Invalid Parameters");
-            return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+            response.put("Errors", "Invalid Parameters");
+            return new ResponseEntity<>(response, HttpStatus.OK);
         }
 
         if(roomRepo.findByRoomName(room.getRoomName()) != null){
-            errorResponse.put("Errors", "Room already exists");
-            return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+            response.put("Errors", "Room already exists");
+            return new ResponseEntity<>(response, HttpStatus.OK);
         }
 
         roomRepo.save(room);
-        return new ResponseEntity<>("Room created successfully", HttpStatus.OK);
+
+        response.put("Success", "Room added");
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
     @PatchMapping
     public ResponseEntity<?> updateRoom(@RequestBody Room room) {
-        Map<String, String> errorResponse = new HashMap<>();
+        Map<String, String> response = new HashMap<>();
+        System.out.println(room.getRoomCapacity());
         if(room.getRoomCapacity() <= 0){
-            errorResponse.put("Errors", "Invalid Capacity");
-            return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+            response.put("Errors", "Invalid Capacity");
+            return new ResponseEntity<>(response, HttpStatus.OK);
         }
 
         if(!roomRepo.existsByRoomID(room.getRoomID())){
-            errorResponse.put("Errors", "Room does not exist");
-            return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+            response.put("Errors", "Room does not exist");
+            return new ResponseEntity<>(response, HttpStatus.OK);
         }
         roomRepo.save(room);
-        return new ResponseEntity<>("Room updated successfully", HttpStatus.OK);
+        response.put("Success", "Room updated successfully");
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
     @Transactional
     @Modifying
     @DeleteMapping
     public ResponseEntity<?> deleteRoom(@RequestParam int roomID) {
-        Map<String, String> errorResponse = new HashMap<>();
+        Map<String, String> response = new HashMap<>();
         if(!roomRepo.existsByRoomID(roomID)){
-            errorResponse.put("Errors", "Room does not exist");
-            return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+            response.put("Errors", "Room does not exist");
+            return new ResponseEntity<>(response, HttpStatus.OK);
         }
         bookingRepo.deleteByRoomID(roomID);
         roomRepo.deleteByRoomID(roomID);
-        return new ResponseEntity<>("Room deleted successfully", HttpStatus.OK);
+        response.put("Success", "Room deleted successfully");
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
 

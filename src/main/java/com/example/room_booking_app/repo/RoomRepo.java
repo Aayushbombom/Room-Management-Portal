@@ -14,4 +14,5 @@ public interface RoomRepo extends JpaRepository<Room, Integer> {
     List<Room> findByRoomCapacityGreaterThanEqual(int capacity);
 
     boolean existsByRoomID(int roomID);
+    boolean existsByRoomName(String roomName);
 }
